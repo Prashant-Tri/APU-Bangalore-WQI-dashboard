@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Final WQI Dashboard</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+body { font-family: "Inter", sans-serif; }
+.card { background:#111827; border-radius:12px; padding:16px; color:white; }
+.small-card { background:#1f2937; border-radius:12px; padding:12px; width:260px; }
+</style>
+</head>
+
+<body class="bg-black text-white p-6">
+
+<div class="max-w-6xl mx-auto">
+
+<h1 class="text-2xl font-bold mb-6">
+Azim Premji University, Bangalore Campus Water Quality Index Dashboard
+</h1>
+
+<select id="sourceSelect" class="bg-gray-800 p-2 rounded mb-6 text-white"></select>
+
+<!-- WQI -->
+<div class="small-card mb-6">
+<p class="text-gray-400 text-sm">WQI</p>
+<p id="wqiValue" class="text-3xl font-bold"></p>
+<p id="wqiStatus" class="text-sm"></p>
+</div>
+
+<!-- CHARTS -->
+<div class="grid grid-cols-2 gap-6 mb-6">
+
+<!-- WQI -->
+<div class="card">
+<h2 class="mb-2">WQI Comparison</h2>
+
+<div class="flex gap-4 text-xs mb-3">
+<span><span class="w-3 h-3 inline-block bg-green-500"></span> Good</span>
+<span><span class="w-3 h-3 inline-block bg-yellow-400"></span> Moderate</span>
+<span><span class="w-3 h-3 inline-block bg-orange-500"></span> Poor</span>
+<span><span class="w-3 h-3 inline-block bg-red-500"></span> Very Poor</span>
+</div>
+
+<canvas id="barChart"></canvas>
+</div>
+
+<!-- PIE -->
+<div class="card">
+<h2>Parameter Contribution</h2>
+<canvas id="pieChart"></canvas>
+</div>
+
+</div>
+
+<!-- RISK -->
+<div class="card mb-6">
+<h2>Parameter Risk (QI)</h2>
+
+<div class="flex gap-4 text-xs mb-3">
+<span><span class="w-3 h-3 inline-block bg-green-500"></span> Safe</span>
+<span><span class="w-3 h-3 inline-block bg-yellow-400"></span> Moderate</span>
+<span><span class="w-3 h-3 inline-block bg-red-500"></span> High</span>
+</div>
+
+<canvas id="riskChart"></canvas>
+</div>
+
+<!-- TABLE -->
+<div class="card overflow-x-auto">
+<table class="w-full text-sm">
+<thead>
+<tr>
+<th>Parameter</th><th>Observed</th><th>Standard</th><th>QI</th>
+</tr>
+</thead>
+<tbody id="tableBody"></tbody>
+</table>
+</div>
+
+</div>
+
+<script>
+
+// PARAMETERS
+const allParams={
+"pH":8.5,"TDS":500,"Nitrate":45,"Ammonia":0.5,"Chlorine":0.2,
+"DO":5,"BOD":3,"Free Carbon":20,"COD":10,"Turbidity":5,
+"Total Hardness":200,"Phosphate":0.1
+};
+
+// COLOR
+function getWQIColor(wqi){
+if(wqi<=50) return "#22c55e";
+if(wqi<=100) return "#facc15";
+if(wqi<=200) return "#f97316";
+return "#ef4444";
+}
+
+function getQIColor(qi){
+if(qi<=50) return "#22c55e";
+if(qi<=100) return "#facc15";
+return "#ef4444";
+}
+
+// DATA
+const sourcesData={
+"SR 21st Floor":{wqi:26.16,data:{"pH":8.23,"TDS":659,"Nitrate":40,"Ammonia":0,"Chlorine":0.05,"DO":4.2,"BOD":2.6,"Free Carbon":12.76,"COD":0,"Turbidity":0,"Total Hardness":370,"Phosphate":0}},
+"SR 4th Floor":{wqi:29.71,data:{"pH":8.28,"TDS":698,"Nitrate":40,"Ammonia":0,"Chlorine":0.05,"DO":4.2,"BOD":4,"Free Carbon":12.76,"COD":0,"Turbidity":0.5,"Total Hardness":374,"Phosphate":0}},
+"Darshini":{wqi:28.01,data:{"pH":8.81,"TDS":49,"Nitrate":5,"Ammonia":0,"Chlorine":0.05,"DO":5,"BOD":4.2,"Free Carbon":3.08,"COD":0,"Turbidity":0,"Total Hardness":86,"Phosphate":0}},
+"Lake - Big":{wqi:130.8,data:{"pH":9.23,"TDS":163,"Nitrate":0,"Ammonia":0,"Chlorine":0.05,"DO":8,"BOD":16,"Free Carbon":0,"COD":159,"Turbidity":29.2,"Total Hardness":0,"Phosphate":0}},
+"Lake - Small":{wqi:92.31,data:{"pH":8.78,"TDS":346,"Nitrate":80,"Ammonia":1,"Chlorine":0.05,"DO":4.8,"BOD":6.6,"Free Carbon":15.84,"COD":23,"Turbidity":0.7,"Total Hardness":1350,"Phosphate":0}},
+"Garden":{wqi:201.81,data:{"pH":7.9,"TDS":842,"Nitrate":5,"Ammonia":0,"Chlorine":0.05,"DO":5.2,"BOD":10.4,"Free Carbon":31.24,"COD":54,"Turbidity":0.5,"Total Hardness":384,"Phosphate":1.15}},
+"Surpur":{wqi:36.92,data:{"pH":8.4,"TDS":634,"Nitrate":40,"Ammonia":0,"Chlorine":0.05,"DO":6.7,"BOD":8.2,"Free Carbon":17.6,"COD":24,"Turbidity":0,"Total Hardness":372,"Phosphate":0}}
+};
+
+// INIT
+const select=document.getElementById("sourceSelect");
+Object.keys(sourcesData).forEach(s=>{
+let o=document.createElement("option");
+o.value=s;o.text=s;select.appendChild(o);
+});
+
+// BAR (FIXED LABEL)
+new Chart(document.getElementById("barChart"),{
+type:"bar",
+data:{
+labels:Object.keys(sourcesData),
+datasets:[{
+label:"WQI Value",
+data:Object.values(sourcesData).map(s=>s.wqi),
+backgroundColor:Object.values(sourcesData).map(s=>getWQIColor(s.wqi))
+}]
+}
+});
+
+let riskChart,pieChart;
+
+// UPDATE
+function updateDashboard(){
+
+let src=sourcesData[select.value];
+
+// WQI
+let wqi=document.getElementById("wqiValue");
+let status=document.getElementById("wqiStatus");
+
+wqi.innerText=src.wqi;
+
+if(src.wqi<=50){wqi.style.color="#22c55e";status.innerText="Good";}
+else if(src.wqi<=100){wqi.style.color="#facc15";status.innerText="Moderate";}
+else if(src.wqi<=200){wqi.style.color="#f97316";status.innerText="Poor";}
+else{wqi.style.color="#ef4444";status.innerText="Very Poor";}
+
+// TABLE + VALUES
+let body=document.getElementById("tableBody");
+body.innerHTML="";
+
+let labels=[],values=[];
+
+Object.entries(allParams).forEach(([p,std])=>{
+let obs=src.data[p]||0;
+let qi=std===0?0:(obs/std)*100;
+qi=Math.max(qi,1); // ensures chlorine visible
+
+labels.push(p);
+values.push(qi);
+
+let exceed=obs>std;
+
+let r=document.createElement("tr");
+r.innerHTML=`
+<td>${p}</td>
+<td class="${exceed?'text-red-400':''}">${obs}</td>
+<td>${std}</td>
+<td>${qi.toFixed(1)}</td>`;
+body.appendChild(r);
+});
+
+// RISK (FIXED LABEL)
+if(riskChart) riskChart.destroy();
+riskChart=new Chart(document.getElementById("riskChart"),{
+type:"bar",
+data:{
+labels:labels,
+datasets:[{
+label:"QI Value",
+data:values,
+backgroundColor:values.map(v=>getQIColor(v))
+}]
+}
+});
+
+// PIE
+if(pieChart) pieChart.destroy();
+pieChart=new Chart(document.getElementById("pieChart"),{
+type:"pie",
+data:{
+labels:labels,
+datasets:[{
+data:values
+}]
+}
+});
+
+}
+
+select.selectedIndex=0;
+select.addEventListener("change",updateDashboard);
+updateDashboard();
+
+</script>
+
+</body>
+</html>
