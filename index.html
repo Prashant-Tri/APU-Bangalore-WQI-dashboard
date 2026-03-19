@@ -8,69 +8,67 @@
 <script src="https://cdn.tailwindcss.com"></script>
 
 <style>
-body { font-family: "Inter", sans-serif; }
-.card { background:#111827; border-radius:12px; padding:16px; color:white; }
-.small-card { background:#1f2937; border-radius:12px; padding:12px; width:260px; }
+body { font-family: "Inter", sans-serif; background:#f8f5f0; }
+.card { background:#fff; border-radius:12px; padding:16px; box-shadow:0 4px 10px rgba(0,0,0,0.05); }
+.small-card { background:#faf7f2; padding:12px; border-radius:12px; width:260px; }
+.red { color:#dc2626; font-weight:600; }
 </style>
 </head>
 
-<body class="bg-black text-white p-6">
+<body class="p-6">
 
-<div class="max-w-6xl mx-auto">
+<div class="max-w-7xl mx-auto">
 
-<h1 class="text-2xl font-bold mb-6">
-Azim Premji University, Bangalore Campus Water Quality Index Dashboard
-</h1>
+<h1 class="text-2xl font-bold mb-4">APU Water Quality Dashboard</h1>
 
-<select id="sourceSelect" class="bg-gray-800 p-2 rounded mb-6 text-white"></select>
+<select id="sourceSelect" class="border p-2 rounded mb-4"></select>
 
-<!-- WQI -->
 <div class="small-card mb-6">
-<p class="text-gray-400 text-sm">WQI</p>
+<p>WQI</p>
 <p id="wqiValue" class="text-3xl font-bold"></p>
-<p id="wqiStatus" class="text-sm"></p>
 </div>
 
-<!-- CHARTS -->
+<div class="card mb-6">
+<h2 class="font-semibold mb-2">Water Quality Insight</h2>
+<p id="insightText"></p>
+</div>
+
 <div class="grid grid-cols-2 gap-6 mb-6">
 
-<!-- WQI -->
+<!-- ✅ WQI WITH LEGEND -->
 <div class="card">
-<h2 class="mb-2">WQI Comparison</h2>
+<h2 class="mb-2 font-semibold">WQI Comparison</h2>
 
-<div class="flex gap-4 text-xs mb-3">
-<span><span class="w-3 h-3 inline-block bg-green-500"></span> Good</span>
-<span><span class="w-3 h-3 inline-block bg-yellow-400"></span> Moderate</span>
-<span><span class="w-3 h-3 inline-block bg-orange-500"></span> Poor</span>
-<span><span class="w-3 h-3 inline-block bg-red-500"></span> Very Poor</span>
+<div class="flex gap-4 text-xs mb-2">
+<span><span class="w-3 h-3 inline-block bg-green-500"></span> Good (0–50)</span>
+<span><span class="w-3 h-3 inline-block bg-yellow-400"></span> Moderate (51–100)</span>
+<span><span class="w-3 h-3 inline-block bg-red-500"></span> Poor (>100)</span>
 </div>
 
 <canvas id="barChart"></canvas>
 </div>
 
-<!-- PIE -->
+<!-- ✅ PARAMETER RISK WITH LEGEND -->
 <div class="card">
-<h2>Parameter Contribution</h2>
-<canvas id="pieChart"></canvas>
-</div>
+<h2 class="mb-2 font-semibold">Parameter Risk (QI)</h2>
 
-</div>
-
-<!-- RISK -->
-<div class="card mb-6">
-<h2>Parameter Risk (QI)</h2>
-
-<div class="flex gap-4 text-xs mb-3">
-<span><span class="w-3 h-3 inline-block bg-green-500"></span> Safe</span>
-<span><span class="w-3 h-3 inline-block bg-yellow-400"></span> Moderate</span>
-<span><span class="w-3 h-3 inline-block bg-red-500"></span> High</span>
+<div class="flex gap-4 text-xs mb-2">
+<span><span class="w-3 h-3 inline-block bg-green-500"></span> Safe (0–50)</span>
+<span><span class="w-3 h-3 inline-block bg-yellow-400"></span> Moderate (51–100)</span>
+<span><span class="w-3 h-3 inline-block bg-red-500"></span> High (>100)</span>
 </div>
 
 <canvas id="riskChart"></canvas>
 </div>
 
-<!-- TABLE -->
-<div class="card overflow-x-auto">
+</div>
+
+<div class="card mb-6">
+<h2>Observed vs Standard</h2>
+<canvas id="comparisonChart"></canvas>
+</div>
+
+<div class="card">
 <table class="w-full text-sm">
 <thead>
 <tr>
@@ -85,18 +83,10 @@ Azim Premji University, Bangalore Campus Water Quality Index Dashboard
 
 <script>
 
-// PARAMETERS
-const allParams={
-"pH":8.5,"TDS":500,"Nitrate":45,"Ammonia":0.5,"Chlorine":0.2,
-"DO":5,"BOD":3,"Free Carbon":20,"COD":10,"Turbidity":5,
-"Total Hardness":200,"Phosphate":0.1
-};
-
-// COLOR
+// COLORS
 function getWQIColor(wqi){
 if(wqi<=50) return "#22c55e";
 if(wqi<=100) return "#facc15";
-if(wqi<=200) return "#f97316";
 return "#ef4444";
 }
 
@@ -106,16 +96,69 @@ if(qi<=100) return "#facc15";
 return "#ef4444";
 }
 
-// DATA
-const sourcesData={
-"SR 21st Floor":{wqi:26.16,data:{"pH":8.23,"TDS":659,"Nitrate":40,"Ammonia":0,"Chlorine":0.05,"DO":4.2,"BOD":2.6,"Free Carbon":12.76,"COD":0,"Turbidity":0,"Total Hardness":370,"Phosphate":0}},
-"SR 4th Floor":{wqi:29.71,data:{"pH":8.28,"TDS":698,"Nitrate":40,"Ammonia":0,"Chlorine":0.05,"DO":4.2,"BOD":4,"Free Carbon":12.76,"COD":0,"Turbidity":0.5,"Total Hardness":374,"Phosphate":0}},
-"Darshini":{wqi:28.01,data:{"pH":8.81,"TDS":49,"Nitrate":5,"Ammonia":0,"Chlorine":0.05,"DO":5,"BOD":4.2,"Free Carbon":3.08,"COD":0,"Turbidity":0,"Total Hardness":86,"Phosphate":0}},
-"Lake - Big":{wqi:130.8,data:{"pH":9.23,"TDS":163,"Nitrate":0,"Ammonia":0,"Chlorine":0.05,"DO":8,"BOD":16,"Free Carbon":0,"COD":159,"Turbidity":29.2,"Total Hardness":0,"Phosphate":0}},
-"Lake - Small":{wqi:92.31,data:{"pH":8.78,"TDS":346,"Nitrate":80,"Ammonia":1,"Chlorine":0.05,"DO":4.8,"BOD":6.6,"Free Carbon":15.84,"COD":23,"Turbidity":0.7,"Total Hardness":1350,"Phosphate":0}},
-"Garden":{wqi:201.81,data:{"pH":7.9,"TDS":842,"Nitrate":5,"Ammonia":0,"Chlorine":0.05,"DO":5.2,"BOD":10.4,"Free Carbon":31.24,"COD":54,"Turbidity":0.5,"Total Hardness":384,"Phosphate":1.15}},
-"Surpur":{wqi:36.92,data:{"pH":8.4,"TDS":634,"Nitrate":40,"Ammonia":0,"Chlorine":0.05,"DO":6.7,"BOD":8.2,"Free Carbon":17.6,"COD":24,"Turbidity":0,"Total Hardness":372,"Phosphate":0}}
-};
+// PARAMETERS
+const allParams=[
+"pH","TDS","Nitrate","Ammonia","Chlorine","DO","BOD",
+"Free Carbon","COD","Turbidity","Total Hardness","Phosphate"
+];
+
+// ✅ YOUR DATA (UNCHANGED)
+const sourcesData = {"SR 21st Floor":{wqi:26.16808,data:{
+"pH":{obs:8.23,std:8.5,qi:82},"TDS":{obs:659,std:500,qi:131.8},
+"Nitrate":{obs:40,std:45,qi:88.88888889},"Ammonia":{obs:0,std:0.5,qi:0},
+"Chlorine":{obs:0.05,std:0.2,qi:25},"DO":{obs:4.2,std:5,qi:108.3333333},
+"BOD":{obs:2.6,std:3,qi:86.66666667},"Free Carbon":{obs:12.76,std:20,qi:63.8},
+"COD":{obs:0,std:10,qi:0},"Turbidity":{obs:0,std:5,qi:0},
+"Total Hardness":{obs:370,std:200,qi:185},"Phosphate":{obs:0,std:0.1,qi:0}
+}},
+"SR 4th Floor":{wqi:29.71482,data:{
+"pH":{obs:8.28,std:8.5,qi:85.33333333},"TDS":{obs:698,std:500,qi:139.6},
+"Nitrate":{obs:40,std:45,qi:88.88888889},"Ammonia":{obs:0,std:0.5,qi:0},
+"Chlorine":{obs:0.05,std:0.2,qi:25},"DO":{obs:4.2,std:5,qi:108.3333333},
+"BOD":{obs:4,std:3,qi:133.3333333},"Free Carbon":{obs:12.76,std:20,qi:63.8},
+"COD":{obs:0,std:10,qi:0},"Turbidity":{obs:0.5,std:5,qi:10},
+"Total Hardness":{obs:374,std:200,qi:187},"Phosphate":{obs:0,std:0.1,qi:0}
+}},
+"Darshini":{wqi:28.01731098,data:{
+"pH":{obs:8.81,std:8.5,qi:103.6470588},"TDS":{obs:49,std:500,qi:9.8},
+"Nitrate":{obs:5,std:45,qi:11.11111111},"Ammonia":{obs:0,std:0.5,qi:0},
+"Chlorine":{obs:0.05,std:0.2,qi:25},"DO":{obs:5,std:5,qi:100},
+"BOD":{obs:4.2,std:3,qi:140},"Free Carbon":{obs:3.08,std:20,qi:15.4},
+"COD":{obs:0,std:10,qi:0},"Turbidity":{obs:0,std:5,qi:0},
+"Total Hardness":{obs:86,std:200,qi:43},"Phosphate":{obs:0,std:0.1,qi:0}
+}},
+"Lake - Big":{wqi:130.804755,data:{
+"pH":{obs:9.23,std:8.5,qi:148.6666667},"TDS":{obs:163,std:500,qi:32.6},
+"Nitrate":{obs:0,std:45,qi:0},"Ammonia":{obs:0,std:0.5,qi:0},
+"Chlorine":{obs:0.05,std:0.2,qi:25},"DO":{obs:8,std:5,qi:68.75},
+"BOD":{obs:16,std:3,qi:533.3333333},"COD":{obs:159,std:20,qi:795},
+"Free Carbon":{obs:0,std:10,qi:0},"Turbidity":{obs:29.2,std:5,qi:584},
+"Total Hardness":{obs:0,std:200,qi:0},"Phosphate":{obs:0,std:0.1,qi:0}
+}},
+"Lake - Small":{wqi:92.31598167,data:{
+"pH":{obs:8.78,std:8.5,qi:118.6666667},"TDS":{obs:346,std:500,qi:69.2},
+"Nitrate":{obs:80,std:45,qi:177.7777778},"Ammonia":{obs:1,std:0.5,qi:200},
+"Chlorine":{obs:0.05,std:0.2,qi:25},"DO":{obs:4.8,std:5,qi:102.0833333},
+"BOD":{obs:6.6,std:3,qi:220},"COD":{obs:23,std:20,qi:115},
+"Free Carbon":{obs:15.84,std:10,qi:158.4},"Turbidity":{obs:0.7,std:5,qi:14},
+"Total Hardness":{obs:1350,std:200,qi:675},"Phosphate":{obs:0,std:0.1,qi:0}
+}},
+"Garden":{wqi:201.8104446,data:{
+"pH":{obs:7.9,std:8.5,qi:92.94117647},"TDS":{obs:842,std:500,qi:168.4},
+"Nitrate":{obs:5,std:45,qi:11.11111111},"Ammonia":{obs:0,std:0.5,qi:0},
+"Chlorine":{obs:0.05,std:0.2,qi:25},"DO":{obs:5.2,std:5,qi:97.91666667},
+"BOD":{obs:10.4,std:3,qi:346.6666667},"COD":{obs:54,std:20,qi:270},
+"Free Carbon":{obs:31.24,std:10,qi:312.4},"Turbidity":{obs:0.5,std:5,qi:10},
+"Total Hardness":{obs:384,std:200,qi:192},"Phosphate":{obs:1.15,std:0.1,qi:1150}
+}},
+"Surpur":{wqi:36.9255025,data:{
+"pH":{obs:8.4,std:8.5,qi:93.33333333},"TDS":{obs:634,std:500,qi:126.8},
+"Nitrate":{obs:40,std:45,qi:88.88888889},"Ammonia":{obs:0,std:0.5,qi:0},
+"Chlorine":{obs:0.05,std:0.2,qi:25},"DO":{obs:6.7,std:5,qi:82.29166667},
+"BOD":{obs:8.2,std:3,qi:273.3333333},"COD":{obs:24,std:20,qi:120},
+"Free Carbon":{obs:17.6,std:10,qi:176},"Turbidity":{obs:0,std:5,qi:0},
+"Total Hardness":{obs:372,std:200,qi:186},"Phosphate":{obs:0,std:0.1,qi:0}
+}}};
 
 // INIT
 const select=document.getElementById("sourceSelect");
@@ -124,7 +167,7 @@ let o=document.createElement("option");
 o.value=s;o.text=s;select.appendChild(o);
 });
 
-// BAR (FIXED LABEL)
+// WQI CHART
 new Chart(document.getElementById("barChart"),{
 type:"bar",
 data:{
@@ -137,50 +180,50 @@ backgroundColor:Object.values(sourcesData).map(s=>getWQIColor(s.wqi))
 }
 });
 
-let riskChart,pieChart;
+let riskChart,comparisonChart;
+
+// INSIGHT
+function generateInsight(data,wqi){
+let maxParam=Object.entries(data).sort((a,b)=>b[1].qi-a[1].qi)[0];
+let quality=wqi<=50?"Good":wqi<=100?"Moderate":"Poor";
+return `WQI is ${wqi.toFixed(2)} indicating ${quality} water quality. Major pollutant is ${maxParam[0]} (QI ${maxParam[1].qi}).`;
+}
 
 // UPDATE
 function updateDashboard(){
 
 let src=sourcesData[select.value];
 
-// WQI
-let wqi=document.getElementById("wqiValue");
-let status=document.getElementById("wqiStatus");
+let wqiEl=document.getElementById("wqiValue");
+wqiEl.innerText=src.wqi.toFixed(2);
+wqiEl.style.color=getWQIColor(src.wqi);
 
-wqi.innerText=src.wqi;
+document.getElementById("insightText").innerText =
+generateInsight(src.data,src.wqi);
 
-if(src.wqi<=50){wqi.style.color="#22c55e";status.innerText="Good";}
-else if(src.wqi<=100){wqi.style.color="#facc15";status.innerText="Moderate";}
-else if(src.wqi<=200){wqi.style.color="#f97316";status.innerText="Poor";}
-else{wqi.style.color="#ef4444";status.innerText="Very Poor";}
-
-// TABLE + VALUES
 let body=document.getElementById("tableBody");
 body.innerHTML="";
 
-let labels=[],values=[];
+let labels=[],qiValues=[],obsValues=[],stdValues=[];
 
-Object.entries(allParams).forEach(([p,std])=>{
-let obs=src.data[p]||0;
-let qi=std===0?0:(obs/std)*100;
-qi=Math.max(qi,1); // ensures chlorine visible
+allParams.forEach(p=>{
+let obj=src.data[p] || {obs:0,std:0,qi:0};
 
 labels.push(p);
-values.push(qi);
-
-let exceed=obs>std;
+qiValues.push(obj.qi);
+obsValues.push(obj.obs);
+stdValues.push(obj.std);
 
 let r=document.createElement("tr");
 r.innerHTML=`
 <td>${p}</td>
-<td class="${exceed?'text-red-400':''}">${obs}</td>
-<td>${std}</td>
-<td>${qi.toFixed(1)}</td>`;
+<td class="${obj.obs>obj.std?'red':''}">${obj.obs}</td>
+<td>${obj.std}</td>
+<td class="${obj.qi>100?'red':''}">${obj.qi}</td>`;
 body.appendChild(r);
 });
 
-// RISK (FIXED LABEL)
+// RISK CHART
 if(riskChart) riskChart.destroy();
 riskChart=new Chart(document.getElementById("riskChart"),{
 type:"bar",
@@ -188,22 +231,36 @@ data:{
 labels:labels,
 datasets:[{
 label:"QI Value",
-data:values,
-backgroundColor:values.map(v=>getQIColor(v))
+data:qiValues,
+backgroundColor:qiValues.map(getQIColor)
 }]
+},
+options:{
+scales:{
+y:{min:0,max:1000},
+x:{
+ticks:{
+autoSkip:false,
+maxRotation:90,
+minRotation:45
+}
+}
+}
 }
 });
 
-// PIE
-if(pieChart) pieChart.destroy();
-pieChart=new Chart(document.getElementById("pieChart"),{
-type:"pie",
+// COMPARISON
+if(comparisonChart) comparisonChart.destroy();
+comparisonChart=new Chart(document.getElementById("comparisonChart"),{
+type:"bar",
 data:{
 labels:labels,
-datasets:[{
-data:values
-}]
-}
+datasets:[
+{label:"Observed",data:obsValues,backgroundColor:"#0d9488"},
+{label:"Standard",data:stdValues,backgroundColor:"#eab308"}
+]
+},
+options:{indexAxis:'y'}
 });
 
 }
