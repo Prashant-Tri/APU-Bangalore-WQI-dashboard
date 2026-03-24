@@ -19,7 +19,7 @@ body { font-family: "Inter", sans-serif; background:#f8f5f0; }
 
 <div class="max-w-7xl mx-auto">
 
-<h1 class="text-2xl font-bold mb-4">Azim Premji University, Bangalore-Campus Water Quality Dashboard</h1>
+<h1 class="text-2xl font-bold mb-4">Water Quality Dashboard</h1>
 
 <select id="sourceSelect" class="border p-2 rounded mb-4"></select>
 
@@ -28,44 +28,38 @@ body { font-family: "Inter", sans-serif; background:#f8f5f0; }
 <p id="wqiValue" class="text-3xl font-bold"></p>
 </div>
 
+<div class="card mb-6">
+<h2 class="text-lg font-semibold mb-2">Water Quality Insight</h2>
+<p id="wqiInsight" class="text-sm text-gray-700"></p>
+</div>
+
+<!-- ✅ Dominant Parameter -->
+<div class="card mb-6">
+<h2 class="text-lg font-semibold mb-2">Dominant Parameter</h2>
+<p id="dominantParam" class="text-sm text-gray-700"></p>
+</div>
+
 <div class="grid grid-cols-2 gap-6 mb-6">
 
-<!-- ✅ WQI -->
 <div class="card">
 <h2 class="mb-2 font-semibold">WQI Comparison</h2>
-
-<div class="flex gap-4 text-xs mb-2">
-<span><span class="w-3 h-3 inline-block bg-green-500"></span> Good (0–50)</span>
-<span><span class="w-3 h-3 inline-block bg-yellow-400"></span> Moderate (51–100)</span>
-<span><span class="w-3 h-3 inline-block bg-red-500"></span> Poor (>100)</span>
-</div>
 <canvas id="barChart"></canvas>
 </div>
 
-<!-- ✅ QI -->
 <div class="card">
-<h2 class="mb-2 font-semibold">WQI Comparison</h2>
-
-<div class="flex gap-4 text-xs mb-2">
-<span><span class="w-3 h-3 inline-block bg-green-500"></span> Good (0–50)</span>
-<span><span class="w-3 h-3 inline-block bg-yellow-400"></span> Moderate (51–100)</span>
-<span><span class="w-3 h-3 inline-block bg-red-500"></span> Poor (>100)</span>
-</div>
+<h2 class="mb-2 font-semibold">Parameter Risk (QI)</h2>
 <canvas id="riskChart"></canvas>
 </div>
 
 </div>
 
-<!-- PARAMETER GRAPH -->
 <div class="card mb-6">
 <h2 class="font-semibold mb-4">Observed vs Standard</h2>
 <div id="paramCharts" class="grid grid-cols-2 gap-4"></div>
 </div>
 
-<!-- TABLE -->
 <div class="card">
 <table class="w-full text-sm table-fixed border-collapse">
-
 <thead class="bg-gray-100">
 <tr>
 <th class="text-left px-4 py-2 w-1/4">Parameter</th>
@@ -74,28 +68,26 @@ body { font-family: "Inter", sans-serif; background:#f8f5f0; }
 <th class="text-center px-4 py-2 w-1/4">QI</th>
 </tr>
 </thead>
-
 <tbody id="tableBody"></tbody>
-
 </table>
+</div>
+
 </div>
 
 <script>
 
-// UNITS
 const units = {
 "pH":"pH","TDS":"mg/L","Nitrate":"mg/L","Ammonia":"mg/L",
 "Chlorine":"mg/L","DO":"mg/L","BOD":"mg/L","Free Carbon":"mg/L",
 "COD":"mg/L","Turbidity":"NTU","Total Hardness":"mg/L","Phosphate":"mg/L"
 };
 
-// PARAMETERS
 const allParams=[
 "pH","TDS","Nitrate","Ammonia","Chlorine","DO","BOD",
 "Free Carbon","COD","Turbidity","Total Hardness","Phosphate"
 ];
 
-// DATA (FULL)
+// (DATA SAME AS YOURS — not changed)
 const sourcesData = {"SR 21st Floor":{wqi:26.16,data:{
 "pH":{obs:8.23,std:8.5,qi:82},"TDS":{obs:659,std:500,qi:131.8},
 "Nitrate":{obs:40,std:45,qi:88.88},"Ammonia":{obs:0,std:0.5,qi:0},
@@ -153,22 +145,21 @@ const sourcesData = {"SR 21st Floor":{wqi:26.16,data:{
 "Total Hardness":{obs:372,std:200,qi:186},"Phosphate":{obs:0,std:0.1,qi:0}
 }} };
 
-// INIT DROPDOWN
+
+
+
 const select=document.getElementById("sourceSelect");
 Object.keys(sourcesData).forEach(s=>{
 let o=document.createElement("option");
 o.value=s;o.text=s;select.appendChild(o);
 });
 
-// ✅ COLOR FUNCTION (GREEN → RED)
 function getWQIColor(v){
 if(v<=50) return "#22c55e";
 if(v<=100) return "#facc15";
 return "#ef4444";
 }
 
-
-// ✅ WQI CHART
 new Chart(document.getElementById("barChart"),{
 type:"bar",
 data:{
@@ -176,31 +167,25 @@ labels:Object.keys(sourcesData),
 datasets:[{
 label:"WQI Value",
 data:Object.values(sourcesData).map(s=>s.wqi),
-backgroundColor:Object.values(sourcesData).map(s=>getWQIColor(s.wqi)),
-barThickness:20
+backgroundColor:Object.values(sourcesData).map(s=>getWQIColor(s.wqi))
 }]
 }
 });
 
 let riskChart;
 
-// PARAMETER MINI GRAPHS
 function createParamCharts(labels,obsValues,stdValues){
-
 const container=document.getElementById("paramCharts");
 container.innerHTML="";
 
 labels.forEach((p,i)=>{
-
 let div=document.createElement("div");
 div.className="small-card";
-
 div.innerHTML=`<p class="text-sm font-semibold mb-1">${p} (${units[p]})</p><canvas></canvas>`;
 container.appendChild(div);
 
 let canvas=div.querySelector("canvas");
-
-let obsColor = obsValues[i] > stdValues[i] ? "#ef4444" : "#0d9488";
+let maxVal = Math.max(obsValues[i], stdValues[i]);
 
 new Chart(canvas,{
 type:"bar",
@@ -208,44 +193,46 @@ data:{
 labels:["Observed","Standard"],
 datasets:[
 {
-label:"Observed",
 data:[obsValues[i],0],
-backgroundColor:obsColor,
-barThickness:12
+backgroundColor: obsValues[i] > stdValues[i] ? "#ef4444" : "#0d9488",
+barPercentage: 0.4,
+categoryPercentage: 0.4,
+maxBarThickness: 20
 },
 {
-label:"Standard",
 data:[0,stdValues[i]],
 backgroundColor:"#eab308",
-barThickness:12
+barPercentage: 0.4,
+categoryPercentage: 0.4,
+maxBarThickness: 20
 }
 ]
 },
 options:{
 plugins:{legend:{display:false}},
-scales:{y:{beginAtZero:true}}
+scales:{
+y:{
+beginAtZero:true,
+max: Math.ceil(maxVal * 1.4 / 10) * 10
+}
+}
 }
 });
-
 });
-
 }
 
-
-// UPDATE
 function updateDashboard(){
 
-let src=sourcesData[select.value];
-
+let src = sourcesData[select.value];
+let insightEl = document.getElementById("wqiInsight");
 let wqiEl = document.getElementById("wqiValue");
 wqiEl.innerText = src.wqi.toFixed(2);
 wqiEl.style.color = getWQIColor(src.wqi);
-
-// TABLE
 let labels=[],qiValues=[],obsValues=[],stdValues=[];
 let body=document.getElementById("tableBody");
 body.innerHTML="";
 
+// LOOP
 allParams.forEach(p=>{
 let obj=src.data[p]||{obs:0,std:0,qi:0};
 
@@ -254,50 +241,48 @@ qiValues.push(obj.qi);
 obsValues.push(obj.obs);
 stdValues.push(obj.std);
 
-body.innerHTML += `
+body.innerHTML+=`
 <tr class="border-b">
-<td class="px-4 py-2 text-left">${p}</td>
-
-<td class="px-4 py-2 text-center ${obj.obs>obj.std?'red':''}">
-${obj.obs} ${units[p]}
-</td>
-
-<td class="px-4 py-2 text-center">
-${obj.std} ${units[p]}
-</td>
-
-<td class="px-4 py-2 text-center">
-${obj.qi}
-</td>
+<td class="px-4 py-2">${p}</td>
+<td class="px-4 py-2 text-center ${obj.obs>obj.std?'red':''}">${obj.obs} ${units[p]}</td>
+<td class="px-4 py-2 text-center">${obj.std} ${units[p]}</td>
+<td class="px-4 py-2 text-center">${obj.qi}</td>
 </tr>`;
 });
 
-// ✅ QI CHART FIXED LABEL
+// ✅ DOMINANT PARAM
+let maxQI = Math.max(...qiValues);
+let index = qiValues.indexOf(maxQI);
+let dominant = labels[index];
+
+// ✅ INSIGHT
+let text="";
+if(src.wqi <= 50) text="Water quality is GOOD.";
+else if(src.wqi <= 100) text="Water quality is MODERATE.";
+else text="Water quality is POOR.";
+
+
+
+insightEl.innerHTML = text;
+
+// ✅ DOMINANT CARD
+document.getElementById("dominantParam").innerHTML =
+`<span class="red">${dominant}</span> (QI = ${maxQI.toFixed(2)})`;
+
+// CHART
 if(riskChart) riskChart.destroy();
+
 riskChart=new Chart(document.getElementById("riskChart"),{
 type:"bar",
 data:{
 labels:labels,
 datasets:[{
-label:"QI Value",
 data:qiValues,
-backgroundColor:qiValues.map(q=> q>100?"#ef4444":q>50?"#facc15":"#22c55e"),
-barThickness:20
+backgroundColor:qiValues.map(q=> q>100?"#ef4444":q>50?"#facc15":"#22c55e")
 }]
-},
-options:{
-scales:{
-y:{
-beginAtZero:true,
-ticks:{
-stepSize:10
-}
-}
-}
 }
 });
 
-// MINI GRAPHS
 createParamCharts(labels,obsValues,stdValues);
 }
 
@@ -309,3 +294,5 @@ updateDashboard();
 
 </body>
 </html>
+
+
